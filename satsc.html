@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <link rel="icon" href="scrofic.ico" type="image/x-icon">
+  <meta charset="UTF-8">
+  <title>學測級分轉換器</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 {
+      color: #4a90e2;
+      text-align: center;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      color: #333;
+      text-align: left;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    #convertBtn {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+    #convertBtn:hover {
+      background-color: #357ABD;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #4a90e2;
+    }
+  </style>
+  <!-- 修改後的 js 路徑 -->
+  <script src="js/114.js"></script>
+  <script src="js/113.js"></script>
+  <script src="js/112.js"></script>
+  <script src="js/111.js"></script>
+</head>
+<body>
+  <h1>學測級分轉換器</h1>
+  <div class="container">
+    <div>
+      <label for="sourceYear">被轉換年：</label>
+      <select id="sourceYear">
+        <option value="">請選擇年份</option>
+        <option value="114">114</option>
+        <option value="113">113</option>
+        <option value="112">112</option>
+        <option value="111">111</option>
+      </select>
+    </div>
+    <div>
+      <label for="targetYear">轉換年：</label>
+      <select id="targetYear">
+        <option value="">請選擇年份</option>
+        <option value="114">114</option>
+        <option value="113">113</option>
+        <option value="112">112</option>
+        <option value="111">111</option>
+      </select>
+    </div>
+    <div>
+      <label for="subject">科目：</label>
+      <select id="subject">
+        <option value="">請選擇科目</option>
+        <option value="chinese">國文</option>
+        <option value="english">英文</option>
+        <option value="mathA">數學A</option>
+        <option value="mathB">數學B</option>
+        <option value="science">自然</option>
+        <option value="society">社會</option>
+      </select>
+    </div>
+    <div>
+      <label for="sourceScore">級分：</label>
+      <input type="number" id="sourceScore" placeholder="請輸入級分">
+    </div>
+    <button id="convertBtn">轉換級分</button>
+    <div id="result"></div>
+  </div>
+  <script>
+    // 根據年份選擇對應外部資料的全域變數
+    function getData(year) {
+      switch(year) {
+        case "114":
+          return window.data114;
+        case "113":
+          return window.data113;
+        case "112":
+          return window.data112;
+        case "111":
+          return window.data111;
+        default:
+          return null;
+      }
+    }
+
+    document.getElementById("convertBtn").addEventListener("click", function(){
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = ""; // 清空前次結果
+
+      // 取得使用者輸入
+      const sourceYear = document.getElementById("sourceYear").value;
+      const targetYear = document.getElementById("targetYear").value;
+      const subject    = document.getElementById("subject").value;
+      const score      = parseFloat(document.getElementById("sourceScore").value);
+
+      if (!sourceYear || !targetYear || !subject || isNaN(score)) {
+         resultDiv.innerHTML = "請填寫所有欄位。";
+         return;
+      }
+
+      // 取得被轉換年的資料
+      const dataSource = getData(sourceYear);
+      if (!dataSource) {
+        resultDiv.innerHTML = "找不到被轉換年(" + sourceYear + ")的資料。";
+        return;
+      }
+      const subjectDataSource = dataSource[subject];
+      if (!subjectDataSource) {
+        resultDiv.innerHTML = "【被轉換年】資料中找不到「" + subject + "」的資料。";
+        return;
+      }
+      
+      // 根據輸入級分查找對應的累計百分比（假設資料是依級分排序的）
+      let cumulativePercent = null;
+      for (let i = 0; i < subjectDataSource.length; i++) {
+        if (subjectDataSource[i].score === score) {
+          cumulativePercent = subjectDataSource[i].cumulative;
+          break;
+        }
+      }
+      if (cumulativePercent === null) {
+        resultDiv.innerHTML = "找不到【被轉換年】該級分對應的累計百分比，請確認輸入是否正確。";
+        return;
+      }
+      
+      // 取得轉換年的資料
+      const dataTarget = getData(targetYear);
+      if (!dataTarget) {
+        resultDiv.innerHTML = "找不到轉換年(" + targetYear + ")的資料。";
+        return;
+      }
+      const subjectDataTarget = dataTarget[subject];
+      if (!subjectDataTarget) {
+        resultDiv.innerHTML = "【轉換年】資料中找不到「" + subject + "」的資料。";
+        return;
+      }
+      
+      // (1) 依累計百分比由高到低排序 (保險起見)
+      subjectDataTarget.sort((a, b) => b.cumulative - a.cumulative);
+
+      // (2) 檢查輸入的 cumulativePercent 是否在目標資料的界線之外
+      if (cumulativePercent >= subjectDataTarget[0].cumulative) {
+        resultDiv.innerHTML = "轉換後級分： " + subjectDataTarget[0].score.toFixed(2);
+        return;
+      }
+      if (cumulativePercent <= subjectDataTarget[subjectDataTarget.length - 1].cumulative) {
+        resultDiv.innerHTML = "轉換後級分： " + subjectDataTarget[subjectDataTarget.length - 1].score.toFixed(2);
+        return;
+      }
+      
+      // (3) 以 epsilon 考慮浮點數精度，在資料中尋找使 cumulativePercent 落在兩筆累計百分比之間的區間  
+      let f = null, g = null, h = null;
+      const epsilon = 1e-6;
+      for (let j = 0; j < subjectDataTarget.length - 1; j++) {
+        let current = subjectDataTarget[j].cumulative;
+        let next    = subjectDataTarget[j + 1].cumulative;
+        if ( (current + epsilon >= cumulativePercent) &&
+             (cumulativePercent >= next - epsilon) ) {
+          f = current;
+          g = next;
+          h = subjectDataTarget[j + 1].score;
+          break;
+        }
+      }
+      if (f === null || g === null) {
+        resultDiv.innerHTML = "在【轉換年】中找不到符合累計百分比區間的資料。";
+        return;
+      }
+      
+      // (4) 使用線性插值計算轉換後級分： m = h - ((累計百分比 - g) / (f - g))
+      const m = h - ((cumulativePercent - g) / (f - g));
+      resultDiv.innerHTML = "轉換後級分： " + m.toFixed(1);
+    });
+  </script>
+</body>
+</html>
